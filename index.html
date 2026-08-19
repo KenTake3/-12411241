@@ -1,1 +1,293 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>英検5級マスター</title>
+  <style>
+    :root { --primary: #4A90E2; --secondary: #FF9F43; --success: #2ECC71; --danger: #E74C3C; --bg: #F0F4F8; }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, sans-serif; user-select: none; }
+    body { background-color: var(--bg); display: flex; flex-direction: column; align-items: center; min-height: 100vh; padding: 15px; color: #333; }
+    
+    header { width: 100%; max-width: 400px; text-align: center; margin-bottom: 20px; }
+    h1 { font-size: 1.5rem; color: #2C3E50; margin-bottom: 5px; }
+    .subtitle { font-size: 0.9rem; color: #7F8C8D; }
+
+    #app { width: 100%; max-width: 400px; background: white; border-radius: 20px; box-shadow: 0 10px 20px rgba(0,0,0,0.05); padding: 20px; min-height: 400px; display: flex; flex-direction: column; position: relative; }
+
+    /* メニュー画面 */
+    .menu-btn { width: 100%; padding: 15px; margin-bottom: 15px; border: none; border-radius: 15px; font-size: 1.2rem; font-weight: bold; color: white; cursor: pointer; transition: transform 0.1s; display: flex; align-items: center; justify-content: center; gap: 10px; }
+    .menu-btn:active { transform: scale(0.95); }
+    .btn-vocab { background: var(--primary); }
+    .btn-listen { background: var(--secondary); }
+    .btn-grammar { background: #9B59B6; }
+
+    /* クイズ画面共通 */
+    .header-bar { display: flex; justify-content: space-between; font-size: 0.9rem; color: #95A5A6; margin-bottom: 15px; font-weight: bold; }
+    .question-box { text-align: center; margin-bottom: 20px; min-height: 80px; display: flex; flex-direction: column; justify-content: center; align-items: center;}
+    .q-en { font-size: 1.8rem; font-weight: bold; color: #2C3E50; word-break: break-word; }
+    .q-jp { font-size: 1.2rem; color: #34495E; font-weight: bold; }
+    
+    .choices-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .choice-btn { padding: 15px 10px; font-size: 1.1rem; border: 2px solid #E1E8ED; background: white; border-radius: 12px; font-weight: bold; cursor: pointer; transition: all 0.2s; color: #2C3E50; }
+    .choice-btn:active { background: #F8F9FA; transform: scale(0.95); }
+    
+    /* 並び替え用 */
+    .grammar-area { display: flex; flex-direction: column; gap: 15px; }
+    .answer-slot { min-height: 60px; border: 2px dashed #BDC3C7; border-radius: 12px; padding: 10px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: center; background: #FAFAFA; }
+    .word-bank { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+    .word-btn { padding: 10px 15px; font-size: 1.1rem; border: none; background: var(--primary); color: white; border-radius: 10px; font-weight: bold; cursor: pointer; }
+    .word-btn.used { background: #E1E8ED; color: #A0AEC0; cursor: not-allowed; }
+    
+    .action-row { display: flex; gap: 10px; margin-top: 15px; }
+    .action-btn { flex: 1; padding: 12px; font-size: 1rem; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; color: white; }
+    .btn-reset { background: #95A5A6; }
+    .btn-check { background: var(--success); }
+
+    /* 結果表示 */
+    .correct-feedback { background: var(--success) !important; color: white !important; border-color: var(--success) !important; }
+    .wrong-feedback { background: var(--danger) !important; color: white !important; border-color: var(--danger) !important; }
+
+    /* スピーカーボタン */
+    .speaker-btn { background: #F1C40F; border: none; border-radius: 50%; width: 60px; height: 60px; font-size: 1.8rem; display: flex; align-items: center; justify-content: center; cursor: pointer; margin: 10px auto; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+    .speaker-btn:active { transform: scale(0.9); }
+
+    /* 終了画面 */
+    .result-screen { text-align: center; padding: 20px 0; }
+    .score-text { font-size: 3rem; font-weight: bold; color: var(--primary); margin: 20px 0; }
+    .btn-back { background: #34495E; color: white; padding: 12px 30px; border: none; border-radius: 10px; font-size: 1.1rem; font-weight: bold; cursor: pointer; margin-top: 20px; width: 100%;}
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>🏆 英検5級マスター</h1>
+    <div class="subtitle">あそびながら ごうかくを目指そう！</div>
+  </header>
+
+  <div id="app">
+    <!-- コンテンツはJavaScriptで切り替わります -->
+  </div>
+
+  <script>
+    // --- 音声エンジンの準備（iOS対策） ---
+    let voices = [];
+    window.speechSynthesis.onvoiceschanged = () => { voices = window.speechSynthesis.getVoices(); };
+    function speakText(text) {
+      window.speechSynthesis.cancel();
+      const uttr = new SpeechSynthesisUtterance(text);
+      uttr.lang = 'en-US';
+      uttr.rate = 0.85; // 子供向けに少しゆっくり
+      if (voices.length === 0) voices = window.speechSynthesis.getVoices();
+      const englishVoice = voices.find(v => v.lang.indexOf('en-') !== -1) || voices.find(v => v.lang === 'en');
+      if (englishVoice) uttr.voice = englishVoice;
+      window.speechSynthesis.speak(uttr);
+    }
+
+    // --- 問題データ ---
+    const db = {
+      vocab: [
+        { q: "library", options: ["としょかん", "びょういん", "がっこう", "こうえん"], a: 0 },
+        { q: "breakfast", options: ["ばんごはん", "あさごはん", "ひるごはん", "おやつ"], a: 1 },
+        { q: "student", options: ["せんせい", "いしゃ", "せいと", "かぞく"], a: 2 },
+        { q: "always", options: ["ときどき", "よく", "まったく", "いつも"], a: 3 },
+        { q: "watch TV", options: ["テレビをみる", "ほんをよむ", "おんがくをきく", "てがみをかく"], a: 0 }
+      ],
+      listen: [
+        { q: "play the piano", options: ["ピアノをひく", "テニスをする", "おんがくをきく", "うたをうたう"], a: 0 },
+        { q: "go to bed", options: ["がっこうにいく", "ねる", "おきる", "おふろにはいる"], a: 1 },
+        { q: "clean the room", options: ["ばんごはんをつくる", "てをあらう", "へやをそうじする", "しゅくだいをする"], a: 2 },
+        { q: "Sunday", options: ["げつようび", "かようび", "どようび", "にちようび"], a: 3 },
+        { q: "beautiful", options: ["うつくしい", "おおきい", "あたらしい", "ふるい"], a: 0 }
+      ],
+      grammar: [
+        { jp: "私はテニスをします。", words: ["play", "I", "tennis", "."], a: ["I", "play", "tennis", "."] },
+        { jp: "あなたはリンゴが好きですか？", words: ["like", "apples", "you", "Do", "?"], a: ["Do", "you", "like", "apples", "?"] },
+        { jp: "これは私の犬です。", words: ["my", "This", "dog", "is", "."], a: ["This", "is", "my", "dog", "."] },
+        { jp: "彼は先生ではありません。", words: ["not", "He", "teacher", "a", "is", "."], a: ["He", "is", "not", "a", "teacher", "."] },
+        { jp: "私は７時に起きます。", words: ["up", "get", "seven", "at", "I", "."], a: ["I", "get", "up", "at", "seven", "."] }
+      ]
+    };
+
+    // --- 状態管理 ---
+    const appDiv = document.getElementById('app');
+    let currentMode = '';
+    let questions = [];
+    let currentIndex = 0;
+    let score = 0;
+    let grammarSelected = [];
+
+    // --- 画面レンダリング ---
+    function renderMenu() {
+      appDiv.innerHTML = `
+        <h2 style="text-align:center; margin-bottom:20px; color:#34495E;">モードをえらぼう</h2>
+        <button class="menu-btn btn-vocab" onclick="startMode('vocab')">📖 たんごクイズ</button>
+        <button class="menu-btn btn-listen" onclick="startMode('listen')">🎧 リスニング</button>
+        <button class="menu-btn btn-grammar" onclick="startMode('grammar')">🧩 ならびかえ</button>
+      `;
+    }
+
+    function startMode(mode) {
+      currentMode = mode;
+      // 問題をシャッフルして5問セットする
+      questions = [...db[mode]].sort(() => Math.random() - 0.5).slice(0, 5);
+      currentIndex = 0;
+      score = 0;
+      renderQuestion();
+    }
+
+    function renderQuestion() {
+      if (currentIndex >= questions.length) {
+        renderResult();
+        return;
+      }
+
+      const qData = questions[currentIndex];
+      const progressHtml = `<div class="header-bar"><span>問 ${currentIndex + 1} / ${questions.length}</span><span>スコア: ${score}</span></div>`;
+
+      // モード別の表示
+      if (currentMode === 'vocab') {
+        appDiv.innerHTML = progressHtml + `
+          <div class="question-box">
+            <div class="q-en">${qData.q}</div>
+            <button class="speaker-btn" onclick="speakText('${qData.q.replace(/'/g, "\\'")}')">🔊</button>
+          </div>
+          <div class="choices-grid">
+            ${qData.options.map((opt, i) => `<button class="choice-btn" onclick="checkChoice(${i}, this)">${opt}</button>`).join('')}
+          </div>
+        `;
+        speakText(qData.q); // 自動再生
+
+      } else if (currentMode === 'listen') {
+        appDiv.innerHTML = progressHtml + `
+          <div class="question-box">
+            <div class="q-jp">おとをきいて、いみを選ぼう</div>
+            <button class="speaker-btn" onclick="speakText('${qData.q.replace(/'/g, "\\'")}')" style="margin-top:20px; width:80px; height:80px; font-size:2.5rem;">🔊</button>
+          </div>
+          <div class="choices-grid">
+            ${qData.options.map((opt, i) => `<button class="choice-btn" onclick="checkChoice(${i}, this)">${opt}</button>`).join('')}
+          </div>
+        `;
+        speakText(qData.q);
+
+      } else if (currentMode === 'grammar') {
+        grammarSelected = [];
+        // 並び替え用の単語をランダムにシャッフル
+        const shuffledWords = [...qData.words].sort(() => Math.random() - 0.5);
+        
+        appDiv.innerHTML = progressHtml + `
+          <div class="question-box">
+            <div class="q-jp">${qData.jp}</div>
+          </div>
+          <div class="grammar-area">
+            <div class="answer-slot" id="answer-slot"></div>
+            <div class="word-bank" id="word-bank">
+              ${shuffledWords.map((w, i) => `<button class="word-btn" id="word-${i}" onclick="selectWord('${w.replace(/'/g, "\\'")}', ${i})">${w}</button>`).join('')}
+            </div>
+            <div class="action-row">
+              <button class="action-btn btn-reset" onclick="resetGrammar()">やりなおす</button>
+              <button class="action-btn btn-check" onclick="checkGrammar()">これでOK！</button>
+            </div>
+          </div>
+        `;
+      }
+    }
+
+    // --- 選択問題の判定 (Vocab / Listen) ---
+    function checkChoice(selectedIndex, btnElement) {
+      // 連続タップ防止
+      const allBtns = document.querySelectorAll('.choice-btn');
+      allBtns.forEach(b => b.disabled = true);
+
+      const correctIndex = questions[currentIndex].a;
+      if (selectedIndex === correctIndex) {
+        btnElement.classList.add('correct-feedback');
+        score += 20; // 1問20点
+      } else {
+        btnElement.classList.add('wrong-feedback');
+        allBtns[correctIndex].classList.add('correct-feedback'); // 正解を教える
+      }
+
+      setTimeout(() => {
+        currentIndex++;
+        renderQuestion();
+      }, 1500); // 1.5秒後に次の問題へ
+    }
+
+    // --- 並び替え問題の処理 (Grammar) ---
+    function selectWord(word, index) {
+      const btn = document.getElementById(`word-${index}`);
+      if (btn.classList.contains('used')) return;
+      
+      btn.classList.add('used');
+      grammarSelected.push(word);
+      updateGrammarDisplay();
+    }
+
+    function resetGrammar() {
+      grammarSelected = [];
+      document.querySelectorAll('.word-btn').forEach(btn => btn.classList.remove('used'));
+      updateGrammarDisplay();
+    }
+
+    function updateGrammarDisplay() {
+      const slot = document.getElementById('answer-slot');
+      slot.innerHTML = grammarSelected.map(w => `<span style="font-size:1.2rem; font-weight:bold; color:var(--primary);">${w}</span>`).join(' ');
+    }
+
+    function checkGrammar() {
+      const qData = questions[currentIndex];
+      // 選んだ単語の数が足りない場合は無効
+      if (grammarSelected.length !== qData.words.length) {
+        alert("すべての単語をつかってね！");
+        return;
+      }
+
+      const isCorrect = grammarSelected.join(' ') === qData.a.join(' ');
+      const slot = document.getElementById('answer-slot');
+
+      if (isCorrect) {
+        slot.style.backgroundColor = "var(--success)";
+        slot.style.color = "white";
+        score += 20;
+        speakText(qData.a.join(' ')); // 正解したら英語を読み上げる
+      } else {
+        slot.style.backgroundColor = "var(--danger)";
+        slot.style.color = "white";
+        // 正解を表示してあげる
+        setTimeout(() => {
+          slot.style.backgroundColor = "#FAFAFA";
+          slot.innerHTML = `<span style="color:var(--danger); font-size:1.1rem;">正解: ${qData.a.join(' ')}</span>`;
+        }, 1000);
+      }
+
+      setTimeout(() => {
+        currentIndex++;
+        renderQuestion();
+      }, 2500); // 少し長めに見せてから次へ
+    }
+
+    // --- 結果発表 ---
+    function renderResult() {
+      let msg = "";
+      if (score === 100) msg = "パーフェクト！てんさい！🎉";
+      else if (score >= 80) msg = "すごい！あともうすこし！✨";
+      else if (score >= 60) msg = "よくがんばったね！👍";
+      else msg = "もういっかい チャレンジしよう！💪";
+
+      appDiv.innerHTML = `
+        <div class="result-screen">
+          <h2>けっかはっぴょう</h2>
+          <div class="score-text">${score} てん</div>
+          <p style="font-size:1.2rem; margin-bottom:20px;">${msg}</p>
+          <button class="btn-back" onclick="renderMenu()">メニューにもどる</button>
+        </div>
+      `;
+    }
+
+    // --- 初期起動 ---
+    renderMenu();
+  </script>
+</body>
+</html>
 
